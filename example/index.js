@@ -17,12 +17,12 @@ else if (!projectID) {
 }
 
 const config = {
-  firebase: {
+  firebase : {
     apiKey,
     appID,
-    projectID
+    projectID,
   },
-  vapidKey: ''
+  vapidKey : '',
 };
 
 (async () => {
