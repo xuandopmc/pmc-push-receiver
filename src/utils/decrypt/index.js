@@ -4,36 +4,63 @@ const ece = require('http_ece');
 module.exports = decrypt;
 
 // https://tools.ietf.org/html/draft-ietf-webpush-encryption-03
-function decrypt(object, keys) {
-  const cryptoKey = object.appData.find(item => item.key === 'crypto-key');
-  if (!cryptoKey) throw new Error('crypto-key is missing');
-  const salt = object.appData.find(item => item.key === 'encryption');
-  if (!salt) throw new Error('salt is missing');
+function base64UrlToBase64(base64UrlString) {
+  // Replace URL-safe characters
+  let base64 = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
 
-  const decodedCryptoKey = base64urlDecode(cryptoKey.value.slice(3));
-  const decodedSalt = base64urlDecode(salt.value.slice(5));
+  // Add padding if necessary
+  while (base64.length % 4) {
+    base64 += '=';
+  }
 
-  const dh = crypto.createECDH('prime256v1');
-  dh.setPrivateKey(keys.privateKey, 'base64');
-
-  const params = {
-    version    : 'aesgcm',
-    authSecret : keys.authSecret,
-    dh         : decodedCryptoKey,
-    privateKey : dh,
-    salt       : decodedSalt,
-  };
-
-  const decrypted = ece.decrypt(object.rawData, params);
-  return JSON.parse(decrypted);
+  return base64;
 }
 
-function base64urlDecode(str) {
-  str = str
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  while (str.length % 4) {
-    str += '=';
+function decrypt(object, keys) {
+  if (!object || !keys) {
+    throw new Error('Invalid input: object or keys are missing');
   }
-  return Buffer.from(str, 'base64').toString('utf-8');
+
+  // Find and validate cryptoKey
+  const cryptoKey = object.appData.find(item => item.key === 'crypto-key');
+  if (!cryptoKey || !cryptoKey.value) {
+    throw new Error('crypto-key is missing or invalid');
+  }
+
+  // Find and validate salt
+  const salt = object.appData.find(item => item.key === 'encryption');
+  if (!salt || !salt.value) {
+    throw new Error('salt is missing or invalid');
+  }
+
+  // Convert cryptoKey and salt from base64url to base64
+  const cryptoKeyBase64 = base64UrlToBase64(cryptoKey.value.slice(3));
+  const saltBase64 = base64UrlToBase64(salt.value.slice(5));
+
+  // Initialize ECDH with the private key
+  const dh = crypto.createECDH('prime256v1');
+  try {
+    dh.setPrivateKey(keys.privateKey, 'base64');
+  } catch (err) {
+    console.error('Invalid private key format:', err.message);
+    throw new Error('Failed to set private key');
+  }
+
+  // Convert dh, salt, and authSecret to Buffer manually to avoid "base64url" usage
+  const params = {
+    version    : 'aesgcm',
+    authSecret : Buffer.from(base64UrlToBase64(keys.authSecret), 'base64'),
+    dh         : Buffer.from(cryptoKeyBase64, 'base64'),
+    privateKey : dh,
+    salt       : Buffer.from(saltBase64, 'base64'),
+  };
+
+  try {
+    // Perform the decryption
+    const decrypted = ece.decrypt(object.rawData, params);
+    return JSON.parse(decrypted);
+  } catch (err) {
+    console.error('Decryption failed:', err.message);
+    throw new Error('Failed to decrypt the message');
+  }
 }
