@@ -1,6 +1,6 @@
 {
   "name": "pmc-push-receiver",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A module to subscribe to GCM/FCM and receive notifications within a node process. v2 is compatible with the latest FCM registration endpoints.",
   "main": "src/index.js",
   "scripts": {
@@ -43,6 +43,7 @@
     "url": "https://github.com/xuandopmc/pmc-push-receiver/issues"
   },
   "homepage": "https://github.com/xuandopmc/pmc-push-receiver#readme",
+  "types": "src/electron/electron-push-receiver.d.ts",
   "devDependencies": {
     "babel-eslint": "^7.2.3",
     "eslint": "^4.4.1",
